@@ -1,0 +1,207 @@
+Install LAMP, PHALCON, SMB, 
+
+-Installation LAMP
+
+user root
+# su -
+# yum update
+
+-Installing Mysql/MariaDB 5
+
+# yum install mariadb mariadb-server
+
+Then we create the system startup links for MariaDB (so that MariaDB starts automatically whenever the system boots) and start the MariaDB server:
+
+# systemctl enable mariadb.service
+
+Start the service of mysql
+
+# systemctl start mariadb.service
+
+Configure mariadb
+
+# mysql_secure_installation
+
+
+Installing php-fpm 5.6 and apache
+
+# yum install php-fpm httpd
+
+Now configure your system to start Apache and Php-fpm at boot time...
+
+# systemctl enable httpd.service
+# systemctl enable php-fpm.service
+# systemctl start httpd.service
+# systemctl start php-fpm.service
+
+Next we need to add the Apache service override in Firewall-cmd as follows:
+
+# firewall-cmd --set-default-zone=public
+
+# firewall-cmd --permanent --zone=public --add-service=http 
+ firewall-cmd --permanent --zone=public –add-service=php-fpm
+  firewall-cmd --permanent --zone=public --add-service=https
+  firewall-cmd --reload
+
+Test
+
+# echo '<?php phpinfo(); ?>' >/var/www/html/info.php
+
+URL: http://127.0.0.1/info.php
+
+Installing Phalcon
+
+configure php.ini
+
+# nano /etc/php.ini
+
+; Maximum amount of memory a script may consume (128MB)
+; http://php.net/memory-limit
+memory_limit = 256M
+
+install the following libraries
+http://blog.famillecollet.com/post/2014/08/01/Apache-httpd-server-2.4.10-and-PHP-FPM-5.6-in-Fedora-21
+sudo yum install php-devel php-mysqlnd gcc libtool
+
+download
+
+# wget http://mirror.yandex.ru/fedora/russianfedora/russianfedora/free/el/releases/7/Everything/source/SRPMS/re2c-0.13.5-7.el7.R.src.rpm
+
+# yum install re2c
+
+Install Zephir (previus install git)
+
+# cd ~
+# git clone https://github.com/json-c/json-c.git
+# cd json-c
+# sh autogen.sh
+# ./configure
+# make && sudo make install
+
+# cd ~
+# git clone https://github.com/phalcon/zephir
+# cd zephir
+# ./install-json
+# ./install -c
+
+Install Phalcon
+
+# cd ~
+# git clone http://github.com/phalcon/cphalcon
+# cd cphalcon
+# git checkout 2.0.0
+# zephir build
+
+
+
+This installs the extension
+
+echo "extension=phalcon.so" >> /etc/php.d/50-phalcon.ini
+
+
+Installing Samba
+
+#  yum install -y samba samba-commons cups-libs policycoreutils-python samba-client
+
+Let’s check if it installed correctly. Restart httpd and php-fpm. Run php -i | grep Phalcon . If you get any output at all (e.g. “Author => Phalcon Team”), the installation was a success.
+
+Configure samba
+
+create a backup
+#mv /etc/samba/smb.conf /etc/samba/smb.conf.bak
+
+create the smb.conf file
+
+#nano /etc/samba/smb.conf
+
+add the following lines
+
+ smb.conf is the main Samba configuration file. You find a full commented
+# version at /usr/share/doc/packages/samba/examples/smb.conf.SUSE if the
+# samba-doc package is installed.
+# Date: 2012-08-08
+
+[global]
+        workgroup = axcetec
+        printing = cups
+        printcap name = cups
+        printcap cache time = 750
+        cups options = raw
+        map to guest = Bad User
+        include = /etc/samba/dhcp.conf
+        logon path = \\%L\profiles\.msprofile
+        logon home = \\%L\%U\.9xprofile
+        logon drive = P:
+        #add machine script = /usr/sbin/useradd  -c Machine -d /var/lib/nobody -s /bin/false %m$
+        domain logons = No
+        domain master = No
+        security = user
+        guest ok = yes
+        guest account = admin
+       	smb ports = 139
+[homes]
+       	comment = Home Directories
+       	valid users = %S, %D%w%S
+       	browseable = No
+       	read only = No
+       	inherit acls = Yes
+[home]
+        comment = All users
+        path = /home
+        read only = No
+        inherit acls = Yes
+        veto files = /aquota.user/groups/shares/
+[apache]
+        comment = Apache
+        path = /var/www/html/
+        read only = No
+        writable = yes
+        guest ok = yes
+        guest account = root
+        inherit acls = Yes
+        veto files = /aquota.user/groups/shares/
+
+
+Now configure your system to start samba at boot time...
+
+# systemctl enable smb.service
+# systemctl enable nmb.service
+# systemctl start smb.service
+# systemctl start nmb.service
+
+
+Next we need to add the samba service override in Firewall-cmd as follows:
+
+# firewall-cmd --permanent --zone=public --add-service=samba 
+  firewall-cmd --reload
+
+To allow a user give the permissions as follows:
+
+#chmod -R 0777 /home/
+#chown -R nobody:nobody /home/
+#chmod -R 0777 /var/www/html/
+#chown -R nobody:nobody /var/www/html/
+
+Further we need to allow the selinux for the samba configuration as follows:
+
+chcon -t samba_share_t /home/
+chcon -t samba_share_t /var/www/html/
+
+
+
+Configure SeLinux
+
+#nano /etc/sysconfig/selinux
+
+Edit to line 7
+
+SELINUX=permissive
+
+Enjoy
+
+
+http://www.sitepoint.com/quick-tip-install-zephir-phalcon-2-vagrant/
+https://www.howtoforge.com/fedora-21-apache-mysql-php-lamp
+http://phalconphp.com/
+http://pkgs.org/centos-7/russian-fedora-free-x86_64/re2c-0.13.5-7.el7.R.x86_64.rpm.html
+http://blog.famillecollet.com/post/2014/08/01/Apache-httpd-server-2.4.10-and-PHP-FPM-5.6-in-Fedora-21
